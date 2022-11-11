@@ -53,7 +53,7 @@ class StreamCrawler:
                 """Require to collect tweets that appear in our dataset as reference only"""
                 json_response = self.tweetCollectAPI.collect_tweets(unknown_tweets)
                 if "includes" in json_response:
-                    if "tweets" in json_response["includes"]: self.parse_user_objects(json_response["includes"]["tweets"])
+                    if "tweets" in json_response["includes"]: self.parse_tweet_objects(json_response["includes"]["tweets"])
                     if "users" in json_response["includes"]: self.parse_user_objects(json_response["includes"]["users"])
 
             self.loader.store_tweets(self.tweet_buffer)
@@ -105,7 +105,7 @@ class StreamCrawler:
     def get_streaming_data(self, json_response, probe_time):
         if "includes" not in json_response:
             return
-        if "tweets" in json_response["includes"]: self.parse_user_objects(json_response["includes"]["tweets"], probe_time)
+        if "tweets" in json_response["includes"]: self.parse_tweet_objects(json_response["includes"]["tweets"], probe_time)
         if "users" in json_response["includes"]: self.parse_user_objects(json_response["includes"]["users"], probe_time)
 
         if self.debug and self.tweet_counter >= 5:
@@ -113,7 +113,7 @@ class StreamCrawler:
             sys.exit(-1)
 
         if self.tweet_counter > 200 or self.user_counter > 200:
-            msg = f'Stream Crawler: dump data into mongo users:{self.tweet_counter} tweets:{self.user_counter}'
+            msg = f'Stream Crawler: dump data into mongo users:{self.user_counter} tweets:{self.tweet_counter}'
             print(f'{datetime.now()} ' + msg)
             write_log(msg)
             self.dump_data()
