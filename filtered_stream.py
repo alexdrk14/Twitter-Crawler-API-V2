@@ -68,7 +68,7 @@ class StreamCrawler:
             self.user_counter = 0
 
 
-    def parse_user_objects(self, users_list, probe_time):
+    def parse_user_objects(self, users_list, probe_time=None):
         for user_object in users_list:
             if user_object["id"] in self.users:
                 continue
@@ -80,7 +80,7 @@ class StreamCrawler:
             self.user_counter += 1
 
 
-    def parse_tweet_objects(self, tweets, probe_time):
+    def parse_tweet_objects(self, tweets, probe_time=None):
 
         for tweet in tweets:
             if int(tweet["id"]) in self.tweets:
