@@ -1,0 +1,4 @@
+{
+    "testing_tag" : "#TEST1 OR #test2 OR #Test",
+    "testing_tag_2" : "keyword_1 AND keyord_2",
+}
