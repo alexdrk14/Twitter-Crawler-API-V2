@@ -1,4 +1,5 @@
 {
     "testing_tag" : "#TEST1 OR #test2 OR #Test",
     "testing_tag_2" : "keyword_1 AND keyord_2",
+    "second_tag_1" : "key1 OR key2 OR key3"
 }

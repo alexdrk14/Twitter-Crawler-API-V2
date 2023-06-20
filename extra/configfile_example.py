@@ -33,8 +33,8 @@ GETFILEDS = "tweet.fields=created_at,attachments,author_id,context_annotations,c
 LOGFILE = "crawler_log.txt"
 
 
-DESTINATIONS = {"ekloges": ['GRElections.users', 'GRElections.tweets'],
-                "testing": ['RussiaWar.users', 'RussiaWar.Tweets'],
+DESTINATIONS = {"testing": ['TestingDB.users', 'TestingDB.tweets'],
+                "second": ['SecondDB.users', 'SecondDB.Tweets'],
                 }
 """List of destinations where beside V2 user profile, also V1 should be collected"""
 V1_OBJECTS = ["testing"]
