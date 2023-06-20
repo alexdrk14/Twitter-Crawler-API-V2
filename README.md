@@ -30,7 +30,7 @@ This is an example of how to list things you need to use the software and how to
   ```
 
 ### Configuration
-1. Get Twitter API keys at[https://developer.twitter.com/en/products/twitter-api](https://developer.twitter.com/en/products/twitter-api)
+1. Get Twitter API keys at [https://developer.twitter.com/en/products/twitter-api](https://developer.twitter.com/en/products/twitter-api)
 2. Insert your Twitter API bearer and v2 consumer/token keys into extra/configfile\_example.py and store it as extra/configfile.py
 3. Beside the Twitter API also provide the all requirement fileds into extra/configfile.py for your case scenarion (Datases, limits, multiple cases and etc.)
 4. According to described datase case scenarios insert your query keywords into keywords\_example.txt and store it as keywords.txt
