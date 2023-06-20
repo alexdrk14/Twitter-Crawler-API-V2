@@ -98,7 +98,7 @@ class dataHandler:
 
             """Check if the user id is in mongo collection and we just haven't seen this item yet"""
             if self.loader.has_user(user_object["id"]):
-                """If the tweet is already in our database, 
+                """If the user is already in our database, 
                 just store the user id in local set in order to avoid requesting again this id.
                 Without pushing the tweet into buffer in order to avoid duplicates."""
                 self.users.add(int(user_object["id"]))

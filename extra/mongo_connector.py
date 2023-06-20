@@ -94,7 +94,8 @@ class MongoLoader:
             self.db[collection].insert_one(tweet)
             self._disconnect_from_db_()
         """
-        self.db[self.col_tweets].insert_many(tweet_list)
+        if len(tweet_list) > 0:
+            self.db[self.col_tweets].insert_many(tweet_list)
 
     ##############################
     # Store user objects
@@ -112,7 +113,8 @@ class MongoLoader:
             self.db[collection].insert_one(user)
             self._disconnect_from_db_()
         """
-        self.db[self.col_users].insert_many(user_list)
+        if len(user_list) > 0 :
+            self.db[self.col_users].insert_many(user_list)
 
     # Read objects rules and choose collection based on destinations config
 

@@ -48,8 +48,8 @@ class StreamCrawler:
 
         if "includes" not in json_response or "matching_rules" not in json_response:
             return seen_tw_references, None
-
-        """Get matching rule name (String)"""
+        
+        print(f"{datetime.now()} resp. recieved")
         matching_rules = json_response["matching_rules"] if type(json_response["matching_rules"]) == str else json_response["matching_rules"][0]["tag"]
 
         """Parse the tweet objects from response"""
@@ -121,8 +121,6 @@ def handler_stop_signals(signum, frame):
 
 """CTRL+C signal"""
 signal.signal(signal.SIGINT, handler_stop_signals)
-"""Kill signal"""
-signal.signal(signal.SIGKILL, handler_stop_signals)
 
 if __name__ == "__main__":
     while True:
