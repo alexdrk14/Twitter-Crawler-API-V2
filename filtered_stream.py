@@ -4,16 +4,17 @@
 #    Particular implementation allow flexible crawling based on Twitter API fields described in configuration file
 Author: Alexander Shevtsov (shevtsov@ics.forth.gr)
 --------------------------------------------------------------------------------------------------------------------"""
-
-
-import sys
+import traceback
+import sys, time, signal
 import extra.configfile as cnf
 
 from datetime import datetime
-from collect_tweet_by_id import CollectTweetsByID
-from extra.mongo_connector import MongoLoader
+from extra.dataHandler import dataHandler
 from extra.streaming_rules import Streaming
-from extra.help_functions import write_log, user_fields_fix, tweet_fields_fix, get_keywords
+from extra.mongo_connector import MongoLoader
+from collect_tweet_by_id import CollectTweetsByID
+from extra.help_functions import write_log, get_keywords
+
 
 class StreamCrawler:
 
@@ -21,106 +22,78 @@ class StreamCrawler:
         self.debug = dbg
 
         """Api in order collect specific tweets by their tweet ID"""
-        self.tweetCollectAPI = CollectTweetsByID()
+        self.tweetCollectAPI = CollectTweetsByID(cnf.GETFILEDS)
 
         self.search_attributes = cnf.GETFILEDS
 
-        if self.debug:
-            """In case of debug mode we dont need the mongo DB and we output the collected tweets into terminal stdout"""
-            self.loader = None
-            self.users = set([])
-            self.tweets = set([])
-        else:
-            self.loader = MongoLoader(destination="tweets")
-            self.users = set(self.loader.get_user_ids())
-            self.tweets = set(self.loader.get_parsed())
-
-        self.seen_tw_references = set([])
-        self.user_buffer = []
-        self.user_counter = 0
-        self.tweet_buffer = []
-        self.tweet_counter = 0
-
-        """Initiate execution since instance is ready"""
-        self.start()
+        """Create data handlers for each matching rule"""
+        self.handlers = { match: dataHandler(dataLoader=MongoLoader(cnf.DESTINATIONS[match][0], cnf.DESTINATIONS[match][1]), handlerName=match, dbg=dbg, get_V1=match in cnf.V1_OBJECTS) for match in cnf.DESTINATIONS}
 
 
-    def dump_data(self):
-        """Store collected tweets in DB"""
-        if self.tweet_counter > 0:
-            unknown_tweets = self.seen_tw_references - self.tweets
-            if len(unknown_tweets) != 0:
-                """Require to collect tweets that appear in our dataset as reference only"""
-                json_response = self.tweetCollectAPI.collect_tweets(unknown_tweets)
-                if "includes" in json_response:
-                    if "tweets" in json_response["includes"]: self.parse_tweet_objects(json_response["includes"]["tweets"])
-                    if "users" in json_response["includes"]: self.parse_user_objects(json_response["includes"]["users"])
+    """Collect from TwitterAPI tweets that appears in the original filtered stream responce as the reference tweets"""
+    def collect_the_references(self, ref_tweets, matching_rules):
 
-            self.loader.store_tweets(self.tweet_buffer)
-            self.tweet_buffer = []
-            self.tweet_counter = 0
-            self.seen_tw_references = set([])
+        """Require to collect tweets that appear in our dataset as reference only"""
+        json_response = self.tweetCollectAPI.collect_tweets(ref_tweets)
+        json_response["matching_rules"] = matching_rules
 
-        """Store collected users in db"""
-        if self.user_counter > 0:
-            self.loader.store_users(self.user_buffer)
-            self.user_buffer = []
-            self.user_counter = 0
+        """Parse the references that seen from previous round. 
+        If we collect references that has their own references to other unseen tweets 
+        we also should collected them too"""
+        ref_tweets, _ = self.parse_response(json_response, probe_time=datetime.now())
 
+    """Parse the json response from Twitter API v2"""
+    def parse_response(self, json_response, probe_time):
+        seen_tw_references = set()
 
-    def parse_user_objects(self, users_list, probe_time=None):
-        for user_object in users_list:
-            if user_object["id"] in self.users:
-                continue
+        if "includes" not in json_response or "matching_rules" not in json_response:
+            return seen_tw_references, None
 
-            user_object = user_fields_fix(user_object, probe_time)
+        """Get matching rule name (String)"""
+        matching_rules = json_response["matching_rules"] if type(json_response["matching_rules"]) == str else json_response["matching_rules"][0]["tag"]
 
-            self.users.add(user_object["id"])
-            self.user_buffer.append(user_object)
-            self.user_counter += 1
+        """Parse the tweet objects from response"""
+        if "tweets" in json_response["includes"]:
+            seen_tw_references = self.handlers[matching_rules.split("_")[0]].parse_tweet_objects(
+                json_response["includes"]["tweets"],
+                matching_rules=matching_rules,
+                probe_time=probe_time)
 
+        """Parse the user objects from response"""
+        if "users" in json_response["includes"]:
+            self.handlers[matching_rules.split("_")[0]].parse_user_objects(
+                json_response["includes"]["users"],
+                matching_rules=matching_rules,
+                probe_time=probe_time)
 
-    def parse_tweet_objects(self, tweets, probe_time=None):
-
-        for tweet in tweets:
-            if int(tweet["id"]) in self.tweets:
-                continue
-
-            """Fix fields of tweet Object"""
-            tweet = tweet_fields_fix(tweet, probe_time)
-
-            if "conversation_id" in tweet:
-                self.seen_tw_references.add(tweet["conversation_id"])
-
-            if "referenced_tweets" in tweet:
-                for item in tweet["referenced_tweets"]:
-                    self.seen_tw_references.add(item["id"])
-
-            """Store tweet data (id, object) in our buffer in order to push them later into DB storage"""
-            self.tweets.add(tweet["id"])
-            self.tweet_buffer.append(tweet)
-            self.tweet_counter += 1
+        return seen_tw_references, matching_rules
 
     """Callback function, that is called by streamer when new data is received"""
     def get_streaming_data(self, json_response, probe_time):
-        if "includes" not in json_response:
-            return
-        if "tweets" in json_response["includes"]: self.parse_tweet_objects(json_response["includes"]["tweets"], probe_time)
-        if "users" in json_response["includes"]: self.parse_user_objects(json_response["includes"]["users"], probe_time)
+        """Parse the original stream response"""
+        seen_tw_references, matching_rules = self.parse_response(json_response, probe_time)
 
-        if self.debug and self.tweet_counter >= 5:
+        """In case of the reference tweets, we should collect the referenced tweet"""
+        if len(seen_tw_references) != 0:
+            self.collect_the_references(seen_tw_references, matching_rules)
+
+        if self.debug:
             print(f'End of tweets in debug mode')
             sys.exit(-1)
 
-        if self.tweet_counter > 200 or self.user_counter > 200:
-            msg = f'Stream Crawler: dump data into mongo users:{self.user_counter} tweets:{self.tweet_counter}'
-            print(f'{datetime.now()} ' + msg)
-            write_log(msg)
-            self.dump_data()
+        """Call handler for particular matching rule. The handler will store parsed data and decide when push the data into collections.
+        Data will be stored when internal buffers (tweets or users) will be full to dump the data into MongoDB"""
+        self.handlers[matching_rules.split("_")[0]].push()
 
+    """Force push of the handlers data into mongo in case of error/exception/kill signal"""
+    def force_push_of_data(self):
 
+        for handler_name in self.handlers:
+            self.handlers[handler_name].push(force=True)
+
+    """The main function that initiates streaming"""
     def start(self):
-        write_log('Crawler process started.')
+        write_log('Filtered Stream started.')
         print('Starting stream')
         """Load keywords for rule description and connect to end point with updating of data collection rules"""
 
@@ -132,5 +105,32 @@ class StreamCrawler:
         self.streamer.initiate_stream(self.get_streaming_data)
 
 
+
+
+StreamInstance = StreamCrawler(dbg=False)
+
+"""Handlers of signals"""
+def handler_stop_signals(signum, frame):
+    global StreamInstance
+    print(f"Signal recieved: {signum}")
+
+    StreamInstance.force_push_of_data()
+
+    time.sleep(5)
+    sys.exit(-1)
+
+"""CTRL+C signal"""
+signal.signal(signal.SIGINT, handler_stop_signals)
+"""Kill signal"""
+signal.signal(signal.SIGKILL, handler_stop_signals)
+
 if __name__ == "__main__":
-    instance = StreamCrawler(dbg=False)
+    while True:
+        try:
+            StreamInstance.start()
+        except Exception as e:
+            msg = f'Streamer Exception: {e} {traceback.format_exc()}{datetime.now()}'
+            print(msg)
+            write_log(msg)
+            StreamInstance.force_push_of_data()
+        time.sleep(10 * 60)

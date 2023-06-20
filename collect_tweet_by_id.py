@@ -1,15 +1,10 @@
-import requests
-import os
-import json
+import requests, time
 import extra.configfile as cnf
 
 
 class CollectTweetsByID:
-    def __init__(self):
-        self.tweet_fields = "tweet.fields=created_at,attachments,author_id,context_annotations,conversation_id,edit_controls,entities,geo,id,in_reply_to_user_id,lang,possibly_sensitive,public_metrics,referenced_tweets,reply_settings,source,text,withheld&" \
-                       "expansions=author_id,referenced_tweets.id,edit_history_tweet_ids,in_reply_to_user_id,attachments.media_keys,attachments.poll_ids,geo.place_id,entities.mentions.username,referenced_tweets.id.author_id&" \
-                       "user.fields=created_at,description,entities,location,pinned_tweet_id,profile_image_url,protected,public_metrics,url,verified,withheld"
-
+    def __init__(self, fields):
+        self.tweet_fields = fields
 
     def create_url(self, tweets):
         ids = ",".join([f'{twid}' for twid in tweets])
@@ -39,6 +34,9 @@ class CollectTweetsByID:
 
 
     def collect_tweets(self, tweets):
+
         url = self.create_url(tweets)
         json_response = self.connect_to_endpoint(url)
+        time.sleep(len(tweets) * 2)
         return json_response
+        #return self.api.get_tweets(tweets, self.tweet_fields) 

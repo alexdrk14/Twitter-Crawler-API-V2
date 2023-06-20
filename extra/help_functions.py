@@ -20,7 +20,7 @@ def get_keywords():
 
 """Function that parse sting datetime into datetime object"""
 def parse_string_date(date):
-    return parse(date) if type(date) == str else date
+    return parse(date).replace(tzinfo=None) if type(date) == str else date
 
 """Simple writing to file function that take a message and store it in logfile defined in configuration"""
 def write_log(msg):
@@ -36,8 +36,7 @@ def user_fields_fix(user_object, probe_time=None):
     """Parse string user profile creation date in form of datetime object
         -> Used in order to make possible fast filtering by creation date in mongoDB
     """
-    if "created_at" in user_object:
-        user_object["created_at"] = parse_string_date(user_object["created_at"])
+    user_object["created_at"] = parse_string_date(user_object["created_at"])
 
     """Store also real datetime timestamp showing date of initial user collection"""
     user_object["probe_at"] = probe_time if not (probe_time is None) else datetime.now()
@@ -54,10 +53,14 @@ def tweet_fields_fix(tweet, probe_time=None):
         if key_value in tweet:
             tweet[key_value] = int(tweet[key_value])
 
+    if "author_id" in tweet:
+        tweet["user"] = {"id": tweet["author_id"]}
+
     """Parse referenced tweetIDs (retweet,quote) as integer instead of string provided by Twitter API"""
     if "referenced_tweets" in tweet:
         for i in range(len(tweet["referenced_tweets"])):
             tweet["referenced_tweets"][i]["id"] = int(tweet["referenced_tweets"][i]["id"])
+
 
     """Fix mentioned userIDs , since Twitter API provide them in form of text we store them in form of integer"""
     if "entities" in tweet and "mentions" in tweet["entities"]:
