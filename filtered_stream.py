@@ -131,4 +131,5 @@ if __name__ == "__main__":
             print(msg)
             write_log(msg)
             StreamInstance.force_push_of_data()
-        time.sleep(10 * 60)
+        print("Sleep for 5 minutes")
+        time.sleep(5 * 60)

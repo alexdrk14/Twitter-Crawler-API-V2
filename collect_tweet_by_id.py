@@ -23,7 +23,7 @@ class CollectTweetsByID:
 
     def connect_to_endpoint(self, url):
         response = requests.request("GET", url, auth=self.bearer_oauth)
-        print(response.status_code)
+        #print(response.status_code)
         if response.status_code != 200:
             raise Exception(
                 "Request returned an error: {} {}".format(
